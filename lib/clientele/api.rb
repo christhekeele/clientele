@@ -1,6 +1,7 @@
 require 'forwardable'
 
 require 'block_party'
+require 'active_support/core_ext/class/attribute'
 
 require 'clientele/configuration'
 require 'clientele/request_builder'
@@ -15,7 +16,10 @@ module Clientele
 
     extend SingleForwardable
     def_delegator :configuration, :logger
-    def_delegator :configuration, :resources
+    def_delegators :request, *Request::VERBS
+
+    class_attribute :resources, instance_predicate: false
+    self.resources = {}
 
     class << self
 
@@ -29,9 +33,8 @@ module Clientele
         configuration.logger
       end
 
-      def resources
-        autoconfigure!
-        configuration.resources
+      def resource(klass)
+        self.resources = resources.merge(:"#{klass}" => klass)
       end
 
     private
@@ -51,6 +54,13 @@ module Clientele
         else; super; end
       end
 
+    end
+
+    def initialize(opts={})
+      self.extend BlockParty::Configurable
+      self.configure_with self.class.configuration.class
+      self.configuration = self.class.configuration.clone
+      self.configuration.load_hash opts
     end
 
   protected

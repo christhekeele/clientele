@@ -1,6 +1,7 @@
 require 'json'
 
 require 'faraday'
+require 'faraday_middleware'
 require 'rash'
 
 require 'clientele/utils'
