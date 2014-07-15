@@ -23,7 +23,7 @@ module Clientele
     end
 
     def async?
-      !!self.callback
+      !!callback
     end
 
     def url
@@ -31,16 +31,13 @@ module Clientele
     end
 
     def to_request(options={})
-      self.options.deep_merge! options
-      self
+      tap do |request|
+        request.options.deep_merge! options
+      end
     end
 
     def call
-      faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
-        request.headers = options.fetch(:headers, {}).merge(headers)
-        request.params  = deep_camelize_keys(query)
-        request.body    = JSON.dump(deep_camelize_keys(body))
-      end
+      callback ? callback.call(response) : response
     end
     alias_method :~, :call
 
@@ -59,16 +56,18 @@ module Clientele
 
   private
 
+    def response
+      faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
+        request.headers = options.fetch(:headers, {}).merge(headers)
+        request.params  = deep_camelize_keys(query)
+        request.body    = JSON.dump(deep_camelize_keys(body))
+      end
+    end
+
     def faraday_client
       Faraday.new(options[:root_url]) do |conn|
-        # Converts parsed response bodies into Hashie::Rash instances
-        # https://github.com/tcocca/rash
         conn.response :rashify
-
-        # Automatically parse JSON response bodies
         conn.response :json, content_type: /\bjson$/, preserve_raw: true
-
-        # Set the adapter to Net::HTTP
         conn.adapter options[:adapter]
       end
     end

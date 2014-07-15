@@ -14,14 +14,14 @@ module Clientele
       attr_reader :subclasses
       attr_accessor :path
 
-      def request(verb, path='', query: {}, body: {}, options: {}, callback: nil)
+      def request(verb, path='', query: {}, body: {}, options: {}, &callback)
         Request.send(verb,
           path: merge_paths(@path || to_s, path),
           query: query,
           body: body,
           options: options,
-          callback: callback,
           resource: self,
+          &callback
         )
       end
 
