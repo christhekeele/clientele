@@ -67,7 +67,7 @@ module Clientele
     def faraday_client
       Faraday.new(options[:root_url]) do |conn|
         conn.response :rashify
-        conn.response :json, content_type: /\bjson$/, preserve_raw: true
+        conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
         conn.adapter options[:adapter]
       end
     end
