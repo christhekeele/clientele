@@ -1,5 +1,6 @@
 require 'clientele/request'
 require 'clientele/utils'
+require 'clientele/resource/pagination'
 
 require 'active_support/core_ext/string/inflections'
 

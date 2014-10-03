@@ -12,12 +12,12 @@ module Clientele
 
     VERBS = %i[get post put patch delete]
     VERBS.each do |verb|
-      define_singleton_method verb do |opts={}, &callback|
+      define_singleton_method verb do |opts = {}, &callback|
         new opts.merge(verb: __method__, callback: callback)
       end
     end
 
-    def initialize(props={})
+    def initialize(props = {})
       apply self.class.defaults
       apply props
     end
