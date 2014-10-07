@@ -22,11 +22,12 @@ module Clientele
         Proc.new do
 
           def next_page(request)
-            request.query[:page] += 1
+            request.query[:page] ||= 0
+            request.query[:page]  += 1
           end
 
           def total(response)
-            response.headers.fetch('x-total-count', Float::INFINITY)
+            response.headers.fetch('x-total-count', Float::INFINITY).to_f
           end
 
           def pages(response)
