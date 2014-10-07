@@ -66,8 +66,15 @@ module Clientele
 
     def faraday_client
       Faraday.new(options[:root_url]) do |conn|
+
+        conn.use FaradayMiddleware::FollowRedirects, limit: options[:redirect_limit] if options[:follow_redirects]
+
+        conn.request  :url_encoded
+
         conn.response :rashify
+        conn.response :logger
         conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
+
         conn.adapter options[:adapter]
       end
     end
