@@ -12,8 +12,14 @@ module Clientele
 
     VERBS = %i[get post put patch delete]
     VERBS.each do |verb|
-      define_singleton_method verb do |opts = {}, &callback|
-        new opts.merge(verb: __method__, callback: callback)
+      define_singleton_method verb do |path = '', opts = {}, &callback|
+        new(
+          opts.tap do |opts|
+            opts.merge!(verb: __method__)
+#           opts.merge!(path: path) unless opts[:path]
+#           opts.merge!(callback: callback) if callback
+          end
+        )
       end
     end
 
@@ -39,7 +45,6 @@ module Clientele
     def call
       callback ? callback.call(response) : response
     end
-    alias_method :~, :call
 
     def + other
       self.class.new(
@@ -83,7 +88,7 @@ module Clientele
       def defaults
         {
           verb:     :get,
-          path:     nil,
+          path:     '',
           query:    {},
           body:     {},
           headers:  {},

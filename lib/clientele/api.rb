@@ -16,7 +16,6 @@ module Clientele
 
     extend SingleForwardable
     def_delegator :configuration, :logger
-    def_delegators :request, *Request::VERBS
 
     class_attribute :resources, instance_predicate: false
     self.resources = {}
@@ -25,7 +24,13 @@ module Clientele
 
       def client(opts={})
         autoconfigure!
-        @client ||= new(opts)
+        if @client
+          @client.tap do |client|
+            client.configuration.load_hash(opts)
+          end
+        else
+          @client = new(opts)
+        end
       end
 
       def logger
@@ -34,7 +39,7 @@ module Clientele
       end
 
       def resource(klass)
-        self.resources = resources.merge(:"#{klass}" => klass)
+        self.resources = resources.merge(klass.method_name.to_sym => klass)
       end
 
     private
@@ -63,21 +68,17 @@ module Clientele
       self.configuration.load_hash opts
     end
 
-  protected
-
-    def request
-      Request
-    end
-
   private
 
     def respond_to_missing?(method_name, include_private=false)
-      resources.keys.include?(method_name) or super
+      resources.keys.include?(method_name) or Request::VERBS.include?(method_name) or super
     end
 
     def method_missing(method_name, *args, &block)
       if resources.keys.include? method_name
-        RequestBuilder.new(self.class::resources[method_name], client: self)
+        RequestBuilder.new(resources[method_name], client: self)
+      elsif Request::VERBS.include? method_name
+        RequestBuilder.new(Request.send(method_name, *args), client: self)
       else; super; end
     end
 

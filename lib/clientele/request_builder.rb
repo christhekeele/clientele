@@ -9,14 +9,13 @@ module Clientele
     alias_method :to_a, :stack
 
     def initialize(*request_components, client: API.client)
-      @stack = Array(request_components).flatten
+      @stack = request_components.flatten
       @client = client
     end
 
     def call
       build.call
     end
-    alias_method :~, :call
 
   protected
 
@@ -49,15 +48,15 @@ module Clientele
       end
     end
 
-    def to_s
-      merge_paths(stack.map(&:to_s))
+    def path
+      merge_paths(stack.map(&:path))
     end
 
   private
 
     def method_missing(method_name, *args, &block)
-      if API::resources.keys.include? method_name
-        tap { |builder| builder.stack << API::resources[method_name] }
+      if client.resources.keys.include? method_name
+        tap { |builder| builder.stack << client.resources[method_name] }
       elsif stack.last.respond_to? :each_with_builder and method_name == :each
         stack.last.each_with_builder(self, &block)
       elsif stack.last.respond_to? method_name, false

@@ -12,26 +12,34 @@ module Clientele
 
     class << self
       include Clientele::Utils
-      attr_reader :subclasses
-      attr_accessor :path
 
-      def request(verb, path='', query: {}, body: {}, options: {}, &callback)
-        Request.send(verb,
-          path: merge_paths(@path || to_s, path),
-          query: query,
-          body: body,
-          options: options,
-          resource: self,
-          &callback
-        )
+      attr_reader :subclasses
+
+      Request::VERBS.each do |verb|
+        define_method verb do |path_segment = '', opts = {}, &callback|
+          path_segment, opts = opts[:path].to_s, path_segment if path_segment.is_a? Hash
+          Request.new(opts.merge(path: merge_paths(path, path_segment || opts[:path].to_s)), &callback)
+        end
+      end
+
+      def request(verb, path = '', opts = {}, &callback)
+        send verb, path, opts, &callback
       end
 
       def to_request(options={}, &callback)
-        request :get, options: options, callback: callback
+        get options: options, &callback
       end
 
-      def to_s
+      def default_path
         self.name.split('::').last.pluralize.underscore
+      end
+
+      def path
+        @path || default_path
+      end
+
+      def method_name
+        @method_name || path
       end
 
     private
@@ -39,6 +47,7 @@ module Clientele
       def inherited(base)
         @subclasses << base
       end
+
     end
 
   end
