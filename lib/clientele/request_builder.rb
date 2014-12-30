@@ -55,18 +55,18 @@ module Clientele
   private
 
     def method_missing(method_name, *args, &block)
-      if client.resources.keys.include? method_name
+      if stack.last.respond_to? method_name, false
+        tap { |builder| builder.stack = builder.stack[0..-2] << builder.stack.last.send(method_name, *args, &block) }
+      elsif client.resources.keys.include? method_name
         tap { |builder| builder.stack << client.resources[method_name] }
       elsif stack.last.respond_to? :each_with_builder and method_name == :each
         stack.last.each_with_builder(self, &block)
-      elsif stack.last.respond_to? method_name, false
-        tap { |builder| builder.stack = builder.stack[0..-2] << builder.stack.last.send(method_name, *args, &block) }
       else; super; end
     end
 
     def respond_to_missing?(method_name, include_private=false)
-      API::resources.keys.include?(method_name) \
-        or stack.last.respond_to?(method_name, include_private) \
+      stack.last.respond_to?(method_name, include_private) \
+        or API::resources.keys.include?(method_name) \
         or super
     end
 
