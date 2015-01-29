@@ -67,7 +67,7 @@ module Clientele
       end
 
       def build(data, client: nil, klass: nil)
-        case (klass or data).kind_of? Array
+        if (klass or data).kind_of? Array
           data.map do |dataset|
             build dataset, client: client
           end
