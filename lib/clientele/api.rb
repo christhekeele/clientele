@@ -7,6 +7,7 @@ require 'clientele/configuration'
 require 'clientele/request_builder'
 require 'clientele/request'
 require 'clientele/resource'
+require 'clientele/response'
 
 module Clientele
   class API
@@ -40,6 +41,10 @@ module Clientele
 
       def resource(klass)
         self.resources = resources.merge(klass.method_name.to_sym => klass)
+      end
+
+      def reset_global_client!
+        @client = nil and client
       end
 
     private
