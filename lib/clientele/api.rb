@@ -44,7 +44,11 @@ module Clientele
       end
 
       def reset_global_client!
-        @client = nil and client
+        @client = nil
+      end
+
+      def reconfigure_global_client!(opts={})
+        reset_global_client! and client(opts)
       end
 
     private
