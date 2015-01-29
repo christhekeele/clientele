@@ -56,7 +56,7 @@ module Clientele
 
       def nested_result_key
         @nested_result_key || result_key
-      e
+      end
 
       def build(data, client: nil)
         if data.kind_of? Array
