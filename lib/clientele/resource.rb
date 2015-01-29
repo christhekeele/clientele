@@ -72,9 +72,9 @@ module Clientele
             build dataset, client: client
           end
         elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? result_key.to_s
-          build data.send method_name, client: client
+          build data.send result_key, client: client
         elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? plural_key.to_s
-          build data.send method_name, client: client
+          build data.send plural_key, client: client
         else
           new(data).tap do |instance|
             instance.instance_variable_set :@client, client if client
