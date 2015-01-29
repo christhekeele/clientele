@@ -7,6 +7,7 @@ require 'clientele/configuration'
 require 'clientele/request_builder'
 require 'clientele/request'
 require 'clientele/resource'
+require 'clientele/response'
 
 module Clientele
   class API
@@ -18,7 +19,7 @@ module Clientele
     def_delegator :configuration, :logger
 
     class_attribute :resources, instance_predicate: false
-    self.resources = {}
+    self.resources = Hashie::Rash.new
 
     class << self
 
@@ -39,7 +40,16 @@ module Clientele
       end
 
       def resource(klass)
+        klass.client = self
         self.resources = resources.merge(klass.method_name.to_sym => klass)
+      end
+
+      def reset_global_client!
+        @client = nil
+      end
+
+      def reconfigure_global_client!(opts={})
+        reset_global_client! and client(opts)
       end
 
     private
@@ -67,6 +77,8 @@ module Clientele
       self.configuration = self.class.configuration.clone
       self.configuration.load_hash opts
     end
+
+    def client; self; end
 
   private
 
