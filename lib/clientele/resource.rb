@@ -51,11 +51,19 @@ module Clientele
       end
 
       def result_key
-        @result_key || method_name
+        @result_key || method_name.singularize
+      end
+
+      def plural_key
+        @plural_key || method_name
       end
 
       def nested_result_key
         @nested_result_key || result_key
+      end
+
+      def nested_plural_key
+        @nested_plural_key || plural_key
       end
 
       def build(data, client: nil, klass: nil)
@@ -64,6 +72,8 @@ module Clientele
             build dataset, client: client
           end
         elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? result_key.to_s
+          build data.send method_name, client: client
+        elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? plural_key.to_s
           build data.send method_name, client: client
         else
           new(data).tap do |instance|
