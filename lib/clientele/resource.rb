@@ -58,12 +58,12 @@ module Clientele
         @nested_result_key || result_key
       end
 
-      def build(data, client: nil)
-        if data.kind_of? Array
+      def build(data, client: nil, klass: nil)
+        case (klass or data).kind_of? Array
           data.map do |dataset|
             build dataset, client: client
           end
-        elsif data.kind_of? Hash and data.keys.map(&:to_s).include? method_name.to_s
+        elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? result_key.to_s
           build data.send method_name, client: client
         else
           new(data).tap do |instance|

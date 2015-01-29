@@ -11,7 +11,7 @@ module Clientele
       @response = response
       super(
         if resource
-          resource.build response.body, client: client
+          resource.build response.body, client: client, klass: response.body.class
         else
           response.body
         end
