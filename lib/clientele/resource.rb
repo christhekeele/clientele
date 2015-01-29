@@ -66,19 +66,26 @@ module Clientele
         @nested_plural_key || plural_key
       end
 
-      def build(data, client: nil, klass: nil)
-        if (klass or data).kind_of? Array
-          data.map do |dataset|
-            build dataset, client: client
+      def build(data, client: nil, response: nil)
+        new(
+          catch(:build) do
+            if data.kind_of? Hash
+              if data.keys.map(&:to_s).include? plural_key.to_s
+                build data.fetch(plural_key), client: client, response: response
+              elsif data.keys.map(&:to_s).include? result_key.to_s
+                throw :build, data.fetch(result_key)
+              else
+                throw :build, data
+              end
+            elsif data.respond_to? :map
+              data.map do |dataset|
+                build dataset, client: client, response: response
+              end
+            end
           end
-        elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? result_key.to_s
-          build data.send result_key, client: client
-        elsif (klass or data).kind_of? Hash and data.keys.map(&:to_s).include? plural_key.to_s
-          build data.send plural_key, client: client
-        else
-          new(data).tap do |instance|
-            instance.instance_variable_set :@client, client if client
-          end
+        ).tap do |instance|
+          instance.instance_variable_set :@client, client if client
+          instance.instance_variable_set :@response, response if response
         end
       end
 
@@ -91,6 +98,8 @@ module Clientele
       end
 
     end
+
+    attr_accessor :response
 
   end
 end

@@ -79,11 +79,11 @@ module Clientele
   private
 
     def result
-      Response.new response, client: client, resource: resource
+      Response.build(response, resource, client)
     end
 
     def response
-      faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
+      @response ||= faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
         request.headers = options.fetch(:headers, {}).merge(headers)
         request.params  = deep_camelize_keys(query)
         request.body    = JSON.dump(deep_camelize_keys(body))
