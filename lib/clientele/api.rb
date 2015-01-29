@@ -65,7 +65,7 @@ module Clientele
 
       def method_missing(method_name, *args, &block)
         autoconfigure!
-        if respond_to_missing?(method_name, false)
+        if respond_to_missing?(method_name.to_s, false)
           client.send method_name, *args, &block
         else; super; end
       end
@@ -84,7 +84,7 @@ module Clientele
   private
 
     def respond_to_missing?(method_name, include_private=false)
-      resources.keys.include?(method_name) or Request::VERBS.include?(method_name) or super
+      resources.keys.include?(method_name.to_s) or Request::VERBS.include?(method_name) or super
     end
 
     def method_missing(method_name, *args, &block)
