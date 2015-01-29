@@ -50,6 +50,14 @@ module Clientele
         @method_name || path
       end
 
+      def result_key
+        @result_key || method_name
+      end
+
+      def nested_result_key
+        @nested_result_key || result_key
+      e
+
       def build(data, client: nil)
         if data.kind_of? Array
           data.map do |dataset|

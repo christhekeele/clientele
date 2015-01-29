@@ -49,7 +49,8 @@ module Clientele
       end
 
       def reconfigure_global_client!(opts={})
-        reset_global_client! and client(opts)
+        reset_global_client!
+        client(opts)
       end
 
     private
@@ -87,10 +88,10 @@ module Clientele
     end
 
     def method_missing(method_name, *args, &block)
-      if resources.keys.include? method_name
-        RequestBuilder.new(resources[method_name], client: self)
-      elsif Request::VERBS.include? method_name
-        RequestBuilder.new(Request.send(method_name, *args), client: self)
+      if resources.keys.include? method_name.to_s
+        RequestBuilder.new(resources[method_name.to_s], client: self)
+      elsif Request::VERBS.include? method_name.to_s
+        RequestBuilder.new(Request.send(method_name.to_s, *args), client: self)
       else; super; end
     end
 
