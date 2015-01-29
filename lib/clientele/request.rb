@@ -5,6 +5,7 @@ require 'faraday_middleware'
 require 'rash'
 
 require 'clientele/utils'
+require 'clientele/response'
 
 module Clientele
   class Request < Struct.new(:verb, :path, :query, :body, :headers, :options, :callback, :resource)
@@ -62,7 +63,7 @@ module Clientele
   private
 
     def response
-      faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
+      Response.new self, faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
         request.headers = options.fetch(:headers, {}).merge(headers)
         request.params  = deep_camelize_keys(query)
         request.body    = JSON.dump(deep_camelize_keys(body))
