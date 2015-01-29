@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description   = <<-DESC
     DSL for creating RESTful API clients for external services.
 
-
+    Follows an ActiveRecord-style class-based resource pattern.
   DESC
   spec.homepage      = "https://github.com/christhekeele/clientele"
   spec.license       = "MIT"
