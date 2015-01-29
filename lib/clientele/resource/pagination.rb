@@ -1,11 +1,12 @@
 module Clientele
-  class Resource
+  class Resource < SimpleDelegator
     module Pagination
 
       def paginate(method_name, &implementation)
         mixin = Module.new do
            define_method method_name do |*args, &block|
             super(*args, &block).tap do |request|
+              request.extend(Enumerable) unless request.kind_of? Enumerable
               request.extend(Iterator)
               request.class_eval(&default_implementation)
               request.class_eval(&implementation) if implementation
@@ -31,7 +32,7 @@ module Clientele
           end
 
           def pages(response)
-            response.body.values.first
+            response
           end
 
         end
@@ -39,16 +40,18 @@ module Clientele
 
       module Iterator
 
-        def each_with_builder(builder)
-          return enum_for(:each_with_builder) unless block_given?
+        def paginateable?; true; end
+
+        def each(request = self.to_request)
+          return enum_for(:each, request) unless block_given?
 
           counter = 0
-          current_response = builder.call
+          current_response = request.call
 
           until counter == total(current_response) do
             if pages(current_response).empty?
-              current_response = builder.tap do |builder|
-                next_page(builder.stack.last)
+              current_response = request.tap do |builder|
+                next_page(request)
               end.call
             else
               counter +=1

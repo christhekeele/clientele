@@ -19,7 +19,7 @@ module Clientele
     def_delegator :configuration, :logger
 
     class_attribute :resources, instance_predicate: false
-    self.resources = {}
+    self.resources = Hashie::Rash.new
 
     class << self
 
@@ -40,6 +40,7 @@ module Clientele
       end
 
       def resource(klass)
+        klass.client = self
         self.resources = resources.merge(klass.method_name.to_sym => klass)
       end
 
@@ -76,6 +77,8 @@ module Clientele
       self.configuration = self.class.configuration.clone
       self.configuration.load_hash opts
     end
+
+    def client; self; end
 
   private
 

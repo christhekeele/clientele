@@ -8,10 +8,22 @@ require 'clientele/utils'
 require 'clientele/response'
 
 module Clientele
-  class Request < Struct.new(:verb, :path, :query, :body, :headers, :options, :callback, :resource)
+  class Request < Struct.new(*%i[
+      verb
+      path
+      query
+      body
+      headers
+      options
+      callback
+      resource
+      client
+    ])
+
     include Clientele::Utils
 
-    VERBS = %i[get post put patch delete]
+    VERBS = Faraday::Connection::METHODS
+
     VERBS.each do |verb|
       define_singleton_method verb do |path = '', opts = {}, &callback|
         new(
@@ -44,7 +56,8 @@ module Clientele
     end
 
     def call
-      callback ? callback.call(response) : response
+      options.deep_merge! client.configuration.to_hash if client
+      callback ? callback.call(result) : result
     end
 
     def + other
@@ -57,13 +70,20 @@ module Clientele
         options:  options.merge(other.options),
         callback: other.callback || callback,
         resource: other.resource || resource,
+        client:   client || other.client,
       )
     end
 
+    def paginateable?; false; end
+
   private
 
+    def result
+      Response.new response, client: client, resource: resource
+    end
+
     def response
-      Response.new self, faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
+      faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
         request.headers = options.fetch(:headers, {}).merge(headers)
         request.params  = deep_camelize_keys(query)
         request.body    = JSON.dump(deep_camelize_keys(body))
@@ -81,7 +101,7 @@ module Clientele
         conn.response :logger
         conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
 
-        conn.adapter options[:adapter]
+        conn.adapter options[:adapter] if options[:adapter]
       end
     end
 
@@ -96,6 +116,7 @@ module Clientele
           options:  {},
           callback: nil,
           resource: nil,
+          client:   nil,
         }
       end
     end

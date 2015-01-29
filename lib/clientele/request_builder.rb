@@ -20,7 +20,7 @@ module Clientele
   protected
 
     def build
-      stack.map(&:to_request).inject(:+).to_request(client.configuration.to_hash)
+      stack.map(&:to_request).inject(:+).to_request(client: client)
     end
 
     # Compare values only, class doesn't matter
@@ -52,6 +52,8 @@ module Clientele
       merge_paths(stack.map(&:path))
     end
 
+    def paginateable?; false; end
+
   private
 
     def method_missing(method_name, *args, &block)
@@ -59,8 +61,8 @@ module Clientele
         tap { |builder| builder.stack = builder.stack[0..-2] << builder.stack.last.send(method_name, *args, &block) }
       elsif client.resources.keys.include? method_name
         tap { |builder| builder.stack << client.resources[method_name] }
-      elsif stack.last.respond_to? :each_with_builder and method_name == :each
-        stack.last.each_with_builder(self, &block)
+      elsif stack.last.paginateable? and enumberable_methods.include? method_name
+        stack.last.send :each, build, &block
       else; super; end
     end
 
@@ -68,6 +70,10 @@ module Clientele
       stack.last.respond_to?(method_name, include_private) \
         or API::resources.keys.include?(method_name) \
         or super
+    end
+
+    def enumberable_methods
+      Enumerable.instance_methods - Module.instance_methods
     end
 
   end
