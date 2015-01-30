@@ -44,6 +44,10 @@ module Clientele
         self.resources = resources.merge(klass.method_name.to_sym => klass)
       end
 
+      def has_resource?(resource)
+        resources.keys.include? resource.to_s
+      end
+
       def reset_global_client!
         @client = nil
       end

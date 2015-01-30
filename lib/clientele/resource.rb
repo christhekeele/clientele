@@ -57,22 +57,30 @@ module Clientele
       def nested_result_key
         @nested_result_key || result_key
       end
+      
+      def nested_plural_key
+        @nested_plural_key || plural_key
+      end
 
-      def build(data, client: nil)
-        if data.kind_of? Array
-          data.map do |dataset|
-            build dataset, client: client
-          end
-        elsif data.kind_of? Hash and data.keys.map(&:to_s).include? method_name.to_s
-          build data.send method_name, client: client
-        else
-          new(data).tap do |instance|
-            instance.instance_variable_set :@client, client if client
+      def build(data, client: nil, response: nil)
+        new(
+          catch(:build) do
+            if data.kind_of? Hash
+              if data.keys.map(&:to_s).include? plural_key.to_s
+                build data.fetch(plural_key), client: client, response: response
+              elsif data.keys.map(&:to_s).include? result_key.to_s
+                throw :build, data.fetch(result_key)
+              else
+                throw :build, data
+              end
+            elsif data.respond_to? :map
+              data.map do |dataset|
+                build dataset, client: client, response: response
+              end
+            end
           end
         end
       end
-
-      def paginateable?; false; end
 
     private
 

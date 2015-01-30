@@ -74,8 +74,6 @@ module Clientele
       )
     end
 
-    def paginateable?; false; end
-
   private
 
     def result
@@ -98,7 +96,7 @@ module Clientele
         conn.request  :url_encoded
 
         conn.response :rashify
-        conn.response :logger
+        conn.response :logger, options[:logger], bodies: true
         conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
 
         conn.adapter options[:adapter] if options[:adapter]
