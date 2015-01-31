@@ -23,16 +23,16 @@ module Clientele
         Proc.new do
 
           def next_page(request)
-            request.query[:page] ||= 0
+            request.query[:page] ||= 1
             request.query[:page]  += 1
           end
 
-          def total(response)
-            response.headers.fetch('x-total-count', Float::INFINITY).to_f
+          def total(result)
+            Integer(result.response.headers['x-total-count']) or Float::INFINITY
           end
 
-          def pages(response)
-            response
+          def pages(result)
+            result
           end
 
         end
@@ -40,7 +40,7 @@ module Clientele
 
       module Iterator
 
-        def paginateable?; true; end
+        @paginateable = true
 
         def each(request = self.to_request)
           return enum_for(:each, request) unless block_given?
@@ -50,9 +50,10 @@ module Clientele
 
           until counter == total(current_response) do
             if pages(current_response).empty?
-              current_response = request.tap do |builder|
+              current_response = request.tap do |request|
                 next_page(request)
               end.call
+
             else
               counter +=1
               yield pages(current_response).shift

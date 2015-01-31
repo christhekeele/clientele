@@ -66,6 +66,10 @@ module Clientele
         @nested_plural_key || plural_key
       end
 
+      def nested_plural_key
+        @nested_plural_key || plural_key
+      end
+
       def build(data, client: nil, response: nil)
         new(
           catch(:build) do
@@ -88,8 +92,6 @@ module Clientele
           instance.instance_variable_set :@response, response if response
         end
       end
-
-      def paginateable?; false; end
 
     private
 

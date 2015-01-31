@@ -6,7 +6,6 @@ module Clientele
     include Clientele::Utils
     include Enumerable
     attr_accessor :stack, :client
-    alias_method :to_a, :stack
 
     def initialize(*request_components, client: API.client)
       @stack = request_components.flatten
@@ -52,28 +51,44 @@ module Clientele
       merge_paths(stack.map(&:path))
     end
 
-    def paginateable?; false; end
-
   private
 
     def method_missing(method_name, *args, &block)
-      if stack.last.respond_to? method_name, false
-        tap { |builder| builder.stack = builder.stack[0..-2] << builder.stack.last.send(method_name, *args, &block) }
-      elsif client.resources.keys.include? method_name.to_s
-        tap { |builder| builder.stack << client.resources[method_name.to_s] }
-      elsif stack.last.paginateable? and enumberable_methods.include? method_name
-        stack.last.send :each, build, &block
+      if chain.respond_to? method_name, :public
+        chain_method method_name, *args, &block
+      elsif client.has_resource? method_name
+        chain_resource method_name
+      elsif should_paginate? method_name
+        chain.send :each, build, &block
       else; super; end
     end
 
     def respond_to_missing?(method_name, include_private=false)
-      stack.last.respond_to?(method_name, include_private) \
-        or API::resources.keys.include?(method_name) \
+      chain.respond_to? method_name, :public \
+        or client.has_resource? method_name \
+        or should_paginate? method_name \
         or super
     end
 
+    def chain
+      stack.last
+    end
+
+    def chain_method(method_name, *args, &block)
+      stack << stack.pop.send(method_name, *args, &block) and self
+    end
+
+    def chain_resource(resource_name)
+      stack << client.resources[method_name.to_s] and self
+    end
+
+    def should_paginate?(method_name)
+      chain.instance_variable_get :@paginateable \
+        and enumberable_methods.include? method_name
+    end
+
     def enumberable_methods
-      Enumerable.instance_methods - Module.instance_methods
+      Enumerable.instance_methods - Module.instance_methods << :each
     end
 
   end
