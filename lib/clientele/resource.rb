@@ -54,12 +54,16 @@ module Clientele
         @result_key || method_name.to_s.singularize
       end
 
+      def results_key
+        @results_key || (@result_key || method_name).to_s.pluralize
+      end
+
       def result(data)
         data[result_key]
       end
 
       def results(data)
-        result(data) if result(data) and result(data).kind_of?(Array)
+        data[results_key] if data[results_key] and data[results_key].kind_of?(Array)
       end
 
       def build(data, client: nil, response: nil)
