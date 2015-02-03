@@ -51,39 +51,31 @@ module Clientele
       end
 
       def result_key
-        @result_key || method_name.singularize
+        @result_key || method_name.to_s.singularize
       end
 
-      def plural_key
-        @plural_key || method_name
+      def result(data)
+        data[result_key]
       end
 
-      def nested_result_key
-        @nested_result_key || result_key
-      end
-
-      def nested_plural_key
-        @nested_plural_key || plural_key
-      end
-
-      def nested_plural_key
-        @nested_plural_key || plural_key
+      def results(data)
+        result(data) if result(data) and result(data).kind_of?(Array)
       end
 
       def build(data, client: nil, response: nil)
         new(
           catch(:build) do
             if data.kind_of? Hash
-              if data.keys.map(&:to_s).include? plural_key.to_s
-                build data.fetch(plural_key), client: client, response: response
-              elsif data.keys.map(&:to_s).include? result_key.to_s
-                throw :build, data.fetch(result_key)
+              if many = results(data)
+                build many, client: client#, response: response
+              elsif one = result(data)
+                throw :build, one
               else
                 throw :build, data
               end
             elsif data.respond_to? :map
               data.map do |dataset|
-                build dataset, client: client, response: response
+                build dataset, client: client#, response: response
               end
             end
           end
