@@ -81,7 +81,8 @@ module Clientele
     end
 
     def response
-      @response ||= faraday_client.send(verb, ensure_trailing_slash(path)) do |request|
+      request_path = options[:ensure_trailing_slash] ? ensure_trailing_slash(path) : path
+      @response ||= faraday_client.send(verb, request_path) do |request|
         request.headers = options.fetch(:headers, {}).merge(headers)
         request.params  = deep_camelize_keys(query)
         request.body    = JSON.dump(deep_camelize_keys(body))

@@ -8,7 +8,7 @@ module Clientele
   module_function
 
     def merge_paths(*urls)
-      ensure_trailing_slash urls.reject(&:blank?).join('/').sub(/(?<!:)\/+/, '/')
+      urls.reject(&:blank?).join('/').sub(/(?<!:)\/+/, '/')
     end
 
     def ensure_trailing_slash(url)

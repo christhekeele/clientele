@@ -16,7 +16,9 @@ module Clientele
     configure_with Configuration
 
     extend SingleForwardable
-    def_delegator :configuration, :logger
+    extend Forwardable
+    def_single_delegator :configuration, :logger
+    def_instance_delegator self, :has_resource?
 
     class_attribute :resources, instance_predicate: false
     self.resources = Hashie::Rash.new
