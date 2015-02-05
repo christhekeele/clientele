@@ -47,7 +47,7 @@ module Clientele
       end
 
       def method_name
-        @method_name || path
+        @method_name || default_path
       end
 
       def result_key

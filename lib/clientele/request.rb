@@ -101,6 +101,8 @@ module Clientele
         conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
 
         conn.adapter options[:adapter] if options[:adapter]
+
+        conn.options.params_encoder = options[:params_encoder] if options[:params_encoder]
       end
     end
 
