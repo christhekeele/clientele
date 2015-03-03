@@ -90,21 +90,10 @@ module Clientele
     end
 
     def faraday_client
-      Faraday.new(options[:root_url]) do |conn|
-
-        conn.use FaradayMiddleware::FollowRedirects, limit: options[:redirect_limit] if options[:follow_redirects]
-
-        conn.request  :url_encoded
-
-        conn.response :rashify
-        conn.response :logger, options[:logger], bodies: true
-        conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
-
-        conn.adapter options[:adapter] if options[:adapter]
-
-        conn.options.params_encoder = options[:params_encoder] if options[:params_encoder]
-
-        options[:faraday_configuration].call conn, options
+      Faraday.new(options[:root_url]) do |connection|
+        if options[:connection]
+          options[:connection].call connection, options
+        end
       end
     end
 
