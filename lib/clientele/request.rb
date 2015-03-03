@@ -103,6 +103,8 @@ module Clientele
         conn.adapter options[:adapter] if options[:adapter]
 
         conn.options.params_encoder = options[:params_encoder] if options[:params_encoder]
+
+        options[:faraday_configuration].call conn, options
       end
     end
 
