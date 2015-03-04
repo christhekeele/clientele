@@ -9,8 +9,6 @@ module Clientele
   class Resource < SimpleDelegator
     include Clientele::Utils
 
-    @subclasses = []
-
     class_attribute :client, instance_predicate: false
     self.client = nil
 
@@ -92,6 +90,7 @@ module Clientele
     private
 
       def inherited(base)
+        @subclasses ||= []
         @subclasses << base
       end
 
