@@ -1,5 +1,5 @@
 module Clientele
-  class Resource < SimpleDelegator
+  class Resource# < SimpleDelegator
     module Pagination
 
       def paginate(method_name, &implementation)

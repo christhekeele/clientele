@@ -27,7 +27,7 @@ module Clientele
 
         conn.request  :url_encoded
 
-        conn.response :rashify
+        # conn.response :rashify
         conn.response :logger, options[:logger], bodies: true
         conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
 

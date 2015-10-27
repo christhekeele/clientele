@@ -2,7 +2,6 @@ require 'json'
 
 require 'faraday'
 require 'faraday_middleware'
-require 'rash'
 
 require 'clientele/utils'
 require 'clientele/response'
@@ -77,7 +76,7 @@ module Clientele
   private
 
     def result
-      Response.build(response, resource, client)
+      Response.build(response, client: client, resource: resource)
     end
 
     def response

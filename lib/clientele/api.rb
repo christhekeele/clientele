@@ -1,7 +1,8 @@
 require 'forwardable'
 
-require 'block_party'
 require 'active_support/core_ext/class/attribute'
+require 'block_party'
+require 'rash'
 
 require 'clientele/configuration'
 require 'clientele/request_builder'

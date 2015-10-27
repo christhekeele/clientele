@@ -6,7 +6,7 @@ require 'clientele/resource/pagination'
 require 'active_support/core_ext/string/inflections'
 
 module Clientele
-  class Resource < SimpleDelegator
+  class Resource# < SimpleDelegator
     include Clientele::Utils
 
     class_attribute :client, instance_predicate: false
@@ -48,43 +48,8 @@ module Clientele
         @method_name || default_path
       end
 
-      def result_key
-        @result_key || method_name.to_s.singularize
-      end
-
-      def results_key
-        @results_key || (@result_key || method_name).to_s.pluralize
-      end
-
-      def result(data)
-        data[result_key]
-      end
-
-      def results(data)
-        data[results_key] if data[results_key] and data[results_key].kind_of?(Array)
-      end
-
-      def build(data, client: nil, response: nil)
-        new(
-          catch(:build) do
-            if data.kind_of? Hash
-              if many = results(data)
-                build many, client: client#, response: response
-              elsif one = result(data)
-                throw :build, one
-              else
-                throw :build, data
-              end
-            elsif data.respond_to? :map
-              data.map do |dataset|
-                build dataset, client: client#, response: response
-              end
-            end
-          end
-        ).tap do |instance|
-          instance.instance_variable_set :@client, client if client
-          instance.instance_variable_set :@response, response if response
-        end
+      def build(data, options = {})
+        new data
       end
 
     private
@@ -96,7 +61,11 @@ module Clientele
 
     end
 
-    attr_accessor :response
+    def initialize(data)
+      @data = data
+    end
+
+    attr_accessor :response, :client
 
   end
 end
