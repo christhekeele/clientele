@@ -79,7 +79,7 @@ module Clientele
     end
 
     def chain_resource(resource_name)
-      stack << client.resources[method_name.to_s] and self
+      stack << client.resources[resource_name.to_s] and self
     end
 
     def should_paginate?(method_name)

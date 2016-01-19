@@ -88,6 +88,10 @@ module Clientele
 
     def client; self; end
 
+    def has_resource?(resource)
+      self.class.has_resource? resource
+    end
+
   private
 
     def respond_to_missing?(method_name, include_private=false)
