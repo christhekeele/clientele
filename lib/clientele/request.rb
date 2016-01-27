@@ -1,120 +1,57 @@
-require 'json'
+require "forwardable"
 
-require 'faraday'
-require 'faraday_middleware'
-
-require 'clientele/utils'
-require 'clientele/response'
+require "clientele/client"
+require 'clientele/http/request'
 
 module Clientele
-  class Request < Struct.new(*%i[
-      verb
-      path
-      query
-      body
-      headers
-      options
-      callback
-      resource
-      client
-    ])
+  class Request < HTTP::Request
 
-    include Clientele::Utils
+    extend Forwardable
 
-    VERBS = Faraday::Connection::METHODS
+    attr_reader    :client
+    def_delegators :client, :configuration, :root
 
-    VERBS.each do |verb|
-      define_singleton_method verb do |path = '', opts = {}, &callback|
-        new(
-          opts.tap do |opts|
-            opts.merge!(verb: __method__)
-#           opts.merge!(path: path) unless opts[:path]
-#           opts.merge!(callback: callback) if callback
-          end
-        )
+    def initialize(client: nil, **options)
+      @client = if client.kind_of? Hash
+        Client.new client
+      else
+        client
       end
-    end
-
-    def initialize(props = {})
-      apply self.class.defaults
-      apply props
-    end
-
-    def async?
-      !!callback
-    end
-
-    def url
-      ensure_trailing_slash merge_paths options[:root_url], path
-    end
-
-    def to_request(options={})
-      tap do |request|
-        request.options.deep_merge! options
-      end
+      uri = root + '/' + options[:path].to_s
+      super options[:verb] || :get, uri, options[:headers] || {}, options[:body]
+      # yield response if block_given?
     end
 
     def call
-      options.deep_merge! client.configuration.to_hash if client
-      callback ? callback.call(result) : result
+      client.call(self)
     end
+    alias_method :response, :call
 
-    def + other
-      self.class.new(
-        verb:     other.verb || verb,
-        path:     merge_paths(path, other.path),
-        query:    query.merge(other.query),
-        body:     body.merge(other.body),
-        headers:  headers.merge(other.headers),
-        options:  options.merge(other.options),
-        callback: other.callback || callback,
-        resource: other.resource || resource,
-        client:   client || other.client,
-      )
-    end
+    def io
+      return unless body
 
-  private
-
-    def result
-      Response.build(response, client: client, resource: resource)
-    end
-
-    def response
-      request_path = options[:ensure_trailing_slash] ? ensure_trailing_slash(path) : path
-      @response ||= faraday_client.send(verb, request_path) do |request|
-        request.headers = options.fetch(:headers, {}).merge(headers)
-        request.params  = deep_camelize_keys(query)
-        request.body    = JSON.dump(deep_camelize_keys(body))
+      if body.respond_to?(:read)
+        body
+      elsif body
+        StringIO.new(body)
       end
     end
 
-    def faraday_client
-      Faraday.new(options[:root_url]) do |connection|
-        if options[:connection]
-          options[:connection].call connection, options
-        end
-      end
+    def body_receiver
+      @body_receiver ||= [nil, BodyReceiver.new]
     end
 
-    class << self
-      def defaults
-        {
-          verb:     :get,
-          path:     '',
-          query:    {},
-          body:     {},
-          headers:  {},
-          options:  {},
-          callback: nil,
-          resource: nil,
-          client:   nil,
-        }
+    class BodyReceiver
+      def initialize
+        @chunks = []
       end
-    end
 
-    def apply(hash={})
-      hash.each do |key, value|
-        self.send :"#{key}=", value
+      def call(res, chunk)
+        @chunks << chunk
+      end
+
+      def join
+        @chunks.join
       end
     end
 

@@ -1,7 +1,7 @@
 Clientele
 =========
 
-> *Create Ruby API clients with ease.*
+> *A powerful, object-oriented Ruby HTTP toolbelt.*
 
 
 

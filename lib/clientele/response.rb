@@ -1,27 +1,59 @@
-# require 'delegate'
+require "forwardable"
+
+require 'clientele/request'
+require 'clientele/http/response'
 
 module Clientele
+  class Response < HTTP::Response
 
-  class Response# < SimpleDelegator
+    extend Forwardable
 
-    class << self
-      def build(response, client: nil, resource: nil)
-        if resource
-          resource.build response.body, response: response, client: client
+    attr_reader    :request
+    def_delegators :request, :configuration, :connection, :root
+
+    def initialize(request: nil, **options)
+      @request = if request.kind_of? Hash
+        Request.new request
+      else
+        request
+      end
+      status = Clientele::HTTP::Status.for options[:status]
+      super status, options[:headers] || {}, options[:body]
+    end
+
+
+    def call
+
+    end
+
+    def receive_body(chunk)
+      return if chunk.nil?
+
+      if @receiver.nil?
+        statuses, receiver = request.send(:body_receiver)
+        @receiver = if statuses && !statuses.include?(@status_code)
+          BodyReceiver.new
         else
-          new response.body
-        end.tap do |instance|
-          instance.instance_variable_set :@client,   client   if client
-          instance.instance_variable_set :@response, response if response
+          receiver
         end
       end
+
+      @receiver.call(self, chunk)
     end
 
-    def initialize(data)
-      @data = data
-    end
+    class BodyReceiver
+      def initialize
+        @chunks = []
+      end
 
-    attr_reader :data, :response, :client
+      def call(res, chunk)
+        @chunks << chunk
+      end
+
+      def join
+        @chunks.join
+      end
+    end
 
   end
 end
