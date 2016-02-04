@@ -1,393 +1,408 @@
 Clientele
 =========
 
-> *A powerful, object-oriented Ruby HTTP toolbelt.*
+> *An simple, structured, HTTP client adapter library.*
 
+
+
+Design
+------
+
+Clientele is a simple ruby HTTP library that's easy to configure, extend, and build other libraries off of.
+
+It's inspired by Faraday and Hurley, with a few extra design goals.
+
+It represents all components of HTTP calls with plain-old ruby value objects. This makes it easy to add behavior the Ruby way, and translate between low and high level HTTP adapters.
+
+It does most mutation on object initialization, to minimize potentially invalid states and be somewhat thread-safe without being clever.
+
+It uses dependency injection heavily, so that objects can be reused often and tested simply.
+
+The main Clientele classes you'll work with are Clients, Requests, and Responses. They're supported by Configurations, Adapters, and Pipelines.
+
+- `Client`: An object that manages configuration and makes requests off of it.
+- `Request`: An object with the minimal data needed to make a request.
+- `Response`: An object with the minimal data needed to represent a response.
+
+- `Configuration`: An object with the required fields needed to configure a client, sane defaults, and high user-extensiblity.
+- `Adapter`: An HTTP Adapter that actually does the work of getting a response from a request.
+- `Pipeline`: A functional set of transformations that can manipulate request and response objects before and after passing through an adapter.
 
 
 Usage
 -----
 
-Clientele makes it easy to create feature-rich ruby API clients with minimal boilerplate.
+### Quick Start
 
-In this example, we'll be making an API client for our popular new service at example.com.
-
-
-### Creating an API Client
-
-Since we'll be distributing this client as a gem, we'll use bundler to get our boilerplate code set up:
-
-```bash
-bundle gem example-api
-cd example-api
-```
-
-Next we'll add `clientele` as a dependency to our gemspec.
+Clientele will create clients on the fly for quick usage:
 
 ```ruby
-# example-api.gemspec
+Clientele.get('https://example.com')
+#=> #<struct Clientele::Response
+#>    status=#<Clientele::HTTP::Status:0x7fbfed08b3a8 - 200: OK>,
+#>    headers=#<Clientele::HTTP::Headers:0x7fbfed08b330
+#>      Connection: close
+#>      Content-Length: 606
+#>      Content-Type: text/html
+#>      Date: Wed, 03 Feb 2016 21:11:24 GMT
+#>      ...
+#>    >,
+#>    body=#<Clientele::HTTP::Response::Body:0x007fbfee9a0d70 @body="<!doctype html><html..."
+#>  >
 
-Gem::Specification.new do |spec|
+# Non-standard verb:
 
-# ...
+Clientele::Client.call(:foobar, 'https://example.com')
+#=> #<struct Clientele::Response
+#>    status=#<Clientele::HTTP::Status:0x7fbae62693c0 - 501: Not Implemented>,
+#>    headers=#<Clientele::HTTP::Headers:0x7fbae6269398
+#>      Connection: close
+#>      Content-Length: 357
+#>      Content-Type: text/html
+#>      Date: Wed, 03 Feb 2016 21:32:02 GMT
+#>      ...
+#>    >,
+#>    body=#<Clientele::HTTP::Response::Body:0x007fbae450d8f8 @body="<?xml version=\"1.0\" encoding=\"iso-8859-1\"?>\n<!DOCTYPE html..."
+#>  >
 
-  spec.add_dependency 'clientele'
+# Available standard verbs:
+Clientele::HTTP::Verb.methods
+#=> [:DELETE, :GET, :HEAD, :OPTIONS, :PATCH, :POST, :PUT, :TRACE]
+```
 
-# ...
+### Client Usage
 
+Generally though, you'll want to create a dedicated client to make requests from:
+
+```ruby
+# Shortcut to get instance: Clientele.client(root: 'https://example.com')
+
+client = Clientele::Client.new(root: 'https://example.com')
+#=> #<Clientele::Client:0x007fe41b90f180
+#>    @configuration=#<Clientele::Client::Configuration:0x007fe41b90f158
+#>       @adapter=Clientele::Adapters::NetHTTP...
+#>     >
+#>   >
+
+# Shortcut to perform request: client.get(path: 'foo/bar/baz', headers: {'Accept' => 'text/plain;'})
+
+request = client.request(verb: :get, path: 'foo/bar/baz', headers: {'Accept' => 'text/plain;'})
+#=> #<struct Clientele::Request
+#>    verb=#<Clientele::HTTP::Verb:0x7fab93fe7270 - GET>,
+#>    uri=#<Clientele::HTTP::URI:0x7fab93ecb440 - https://example.com/foo/bar/baz>,
+#>    headers=#<Clientele::HTTP::Headers:0x7fab93ecb0d0
+#>      Accept: text/plain;
+#>    >,
+#>    body=#<Clientele::HTTP::Request::Body:0x007fab93ecafe0 @content=nil>
+#>   >
+
+client.call request
+#=> #<struct Clientele::Response
+#>    status=#<Clientele::HTTP::Status:0x7fab9446c200 - 404: Not Found>,
+#>    headers=#<Clientele::HTTP::Headers:0x7fab93cebd78
+#>     Cache-Control: max-age=604800
+#>     Content-Type: text/html
+#>     Date: Wed, 03 Feb 2016 22:42:52 GMT
+#>     ETag: "359670651+gzip"
+#>     Expires: Wed, 10 Feb 2016 22:42:52 GMT
+#>     Last-Modified: Fri, 09 Aug 2013 23:54:35 GMT
+#>     Server: ECS (oxr/83C7)
+#>     Vary: Accept-Encoding
+#>     X-Cache: HIT
+#>     X-Ec-Custom-Error: 1
+#>     Content-Length: 606
+#>     Connection: close
+#>    >,
+#>    body=#<Clientele::HTTP::Response::Body:0x007fab93c8b108
+#>      @body="<!doctype html>\n<html>...""
+#>    >
+#>   >
+```
+
+### Client Configuration
+
+A root URI is the only required configuration. You can set several extra options though, or define your own:
+
+```ruby
+client = Clientele::Client.new do |config|
+  config.root    = 'https://example.com'
+  config.timeout = 10 # seconds. Default: false
+  config.logger  = Rails.logger # Default: Logger.new($stdout)
+
+  config.adapter  = Proc.new # Described below. Default: Clientele::Adapters::NetHTTP
+  config.pipeline = Proc.new # Described below. Default: config.adapter
+
+  config.custom = "value"
 end
+
+client.config.custom
+#=> "value"
 ```
 
-Then install `clientele`.
-
-```bash
-bundle install
-```
-
-Finally, we can create our simple API Client class.
+If you make extensive use of custom configuration or need advanced default values, it's recommended you subclass the Configuration class:
 
 ```ruby
-# lib/example/api.rb
+# Or use Clientele::Configuration for a totally blank slate
+class CustomConfiguration < Clientele::Client::Configuration
 
-require 'clientele'
-
-module Example
-  class API < Clientele::API
-
+  # Custom setup
+  def initialize
+    super
+    @custom = :value
   end
+
+  # Custom assignment
+  def custom= value
+    @custom = value.to_sym
+  end
+
+  # Custom reader
+  attr_reader :custom
+
+  def configure(**options, &block)
+    # This method takes an options hash, and calls
+    # self.key= value for each item, then yields itself
+    # into the block where block configuration can take place.
+    # It's recommended to leave this method alone, but now
+    # you know how this object works.
+    super
+  end
+
 end
 ```
 
-
-### Using API Clients
-
-Now that we have a client class, we can construct requests off of it to our API by providing the anatomy of an HTTP request.
-
-#### Initializing a Client
-
-Creating a client instance is as simple as passing in any configuration options into `new`. We'll make requests off of these client instances.
+Custom Configuration classes can be used as a single positional argument when instantiating a client:
 
 ```ruby
-client = Example::API.new(root_url: 'http://example.com')
+client = Clientele.client(root: 'https://example.com', custom: 'value')
+client.config.class
+#=> Clientele::Client::Configuration
+client.config.root
+#=> #<Clientele::HTTP::URI:0x7f8b15cbadc0 - https://example.com>
+client.config.custom
+#=> 'value'
+
+client = Clientele.client(CustomConfiguration, root: 'https://example.com', custom: 'value')
+client.config.class
+#=> CustomConfiguration
+client.config.root
+#=> #<Clientele::HTTP::URI:0x7f8b15cbadc0 - https://example.com>
+client.config.custom
+#=> :value
 ```
 
-Alternatively, you can use the `client` method to lazily initialize and access a global API client if you're not concerned about thread safety, or just experimenting with an API.
+### Client Adapters
+
+Adapters are any Ruby object that responds to `call`. They take a single `Clientele::Request` object and return a `Clientele::Response`.
+
+Currently Clientele comes with batteries out-of-the-box: a default `Clientele::Adapters::NetHTTP` that uses Ruby's builtin 'net/http' library. We intend to support more down the line.
+
+If you decide to compose your own, take a look at the `Clientele::Adapters::NetHTTP` implementation and the 'clientele/http' library to see the value objects and their predicate methods that Clientele uses under the hood. We'd love pull requests in this arena.
+
+You can use them in your configuration as follows:
 
 ```ruby
-# Return client with default configuration
-Example::API.client
-#=> #<Example::API:0x007f85faa16468>
+Clientele.client(root: 'https://example.com') do |config|
 
-# Configure/reconfigure and return global client
-Example::API.client(root_url: 'http://example.com')
-#=> #<Example::API:0x007f85faa16468>
+  # Use simple symbol from `Clientele::Adapter.keys`
+  config.adapter = :net_http
+# OR
+  # Use existing class namespaced under `Clientele::Adapters`
+  config.adapter = Clientele::Adapters::NetHTTP
+# OR
+  # Use custom lambda implementation
+  config.adapter = -> request do
+    generate_clientele_response_from_clientele_request(request)
+  end
+# OR
+  # Custom implementation inline
+  config.adapter do |request|
+    generate_clientele_response_from_clientele_request(request)
+  end
+
+end
 ```
 
-Future calls to `client` will use this configured instance. Passing options into it will reconfigure this global client.
+### Client Pipelines
 
-Finally, any unknown method calls on the client class attempt to see if the global client instance responds to them.
+Pipelines are the way Clientele transforms requests and responses, similar to Faraday's middleware or Hurley's callbacks.
+
+They're a simple collection of 'transforms'–objects that respond to `call` and accept a single argument. They have three stacks of transforms: before, around, and after transforms.
+
+You can use them in your configuration as follows:
 
 ```ruby
-Example::API.foo
-# will return the result of
-Example::API.client.foo
-# provided the client responds to foo.
+Clientele.client(root: 'https://example.com') do |config|
+
+  # Inline definition
+  config.pipeline do
+    before(list, of, transforms)
+    around(list, of, transforms)
+    after(list, of, transforms)
+  end
+
+  # Same as:
+
+  custom_pipeline = Pipeline.new do
+    before(list, of, transforms)
+    around(list, of, transforms)
+    after(list, of, transforms)
+  end
+
+  # assign an existing pipeline
+  config.pipeline = custom_pipeline
+
+end
 ```
 
-#### Configuring Clients
+Pipelines allow you create a series of functional transforms to an object.
 
-API client classes are highly configurable. The only required parameter to use your client is the `root_url` we saw above on initialization. We can configure our API with a default root_url and omit it on initialization in the future.
+Before transforms should take a single object and return it. They run in the order supplied:
 
 ```ruby
-# lib/example/api.rb
+pipeline = Clientele::Pipeline.new
 
-require 'clientele'
+before1 = -> string do
+  puts "in first before transform"
+  string.upcase
+end
+before2 = -> string do
+  puts "in second before transform"
+  string + 'bar'
+end
+pipeline.before(before1, before2)
 
-module Example
-  class API < Clientele::API
-    configure do |config|
-      config.root_url = "http://example.com/"
+# To launch a pipeline, give it a starting object and it will be transformed:
+pipeline.call("foo")
+#:> in first before transform
+#:> in second before transform
+#=> "FOObar"
+```
+
+After transforms work similarly, but in the reverse order supplied.
+
+```ruby
+pipeline = Clientele::Pipeline.new
+
+after1 = -> string do
+  puts "in first after transform"
+  '!' + string + '!'
+end
+after2 = -> string do
+  puts "in second after transform"
+  string + 'buzz'
+end
+pipeline.after(after1, after2)
+
+pipeline.call("fizz")
+#:> in second after transform
+#:> in first after transform
+#=> "!fizzbuzz!"
+```
+
+When you run a pipeline, you can pass it an optional transform to invoke in the middle of it. In clientele, this is your `config.adapter`, that takes a request and returns a response.
+
+In this example, we expect a string and return a symbol.
+
+```ruby
+middle = -> string { string.to_sym }
+middle.call("foo") #=> :foo
+
+pipeline = Clientele::Pipeline.new do
+
+  before(-> string do
+    string + string.reverse.upcase
+  end)
+
+  after( -> symbol do
+    symbol.swapcase
+  end)
+
+end
+
+pipeline.call("foo", &middle)
+#=> :FOOoof
+```
+
+Around transforms run in the order supplied, like before transforms, but must yield so that other around transforms and the middle transformation can be applied:
+
+```ruby
+require 'tempfile'
+
+module TempfileManager
+  class << self
+    def call(path)
+      file = Tempfile.new path
+      yield file
+      file.unlink
     end
   end
 end
-```
 
-This default configuration can be overridden by passing a hash of options as seen above. Other configuration options and their default values are discussed below.
-
-
-#### Building Requests on Client Instances
-
-The simplest way to make requests is to call the HTTP verb you want on your client, passing in a hash with everything you need to in the request. For the rest of these examples we'll be using the global client rather than initialize a new one each time.
-
-```ruby
-request = Example::API.get(path: 'foo')
-#=> #<struct Clientele::Request>
-```
-
-Clients respond to any of the HTTP verbs found in `Clientele::Request::VERBS`. The resulting request can be triggered with `call`, as if a Proc.
-
-```ruby
-response = Example::API.get(path: 'foo').call
-#=> #<Faraday::Response>
-```
-
-Unlike other options, you can provide path as a direct argument rather than a keyword one.
-
-```ruby
-Example::API.get(path: 'foo', query: {bar: :baz})
-# is the same as
-Example::API.get('foo', query: {bar: :baz})
-# and corresponds to GET http://example.com/foo?bar=baz
-```
-
-The options used to construct a request are:
-
-Option | Default | Description
-------------------------------
-path | `''` | The url path to build off of `root_url`.
-query | `{}` | A hash of query string parameters.
-body | `{}` | A hash representing the request payload.
-headers | `client.configuration.default_headers` | A hash representing the request headers. Supplying your own will merge in with the default headers set on the client instance, overriding already defined ones.
-callback | `nil` | An optional callback `Proc` to pass the response into. If the request constructor receives a block, it will use that as a callback.
-
-Of course, all these features amount to at this point is an idiomatic Ruby HTTP Library. The power of `clientele` comes from defining resources your API contains.
-
-
-### Creating Resources
-
-Resources inherit from `Clientele::Resource` and map to namespaced endpoints of an API that deal with similar datatypes, as is found often in RESTful APIs.
-
-```ruby
-# lib/example/api/resources/foo.rb
-
-module Example
-  class API < Clientele::API
-    module Resources
-      class Foo < Clientele::Resource
-
-      end
+module FileManager
+  class << self
+    def call(file)
+      file.open
+      yield file
+      file.close
     end
   end
 end
-```
 
-Resource classes can be placed anywhere under any namespace, because they're registered with your API Client by hand using the `resource` directive. Ours is just an example namespace.
+pipeline = Clientele::Pipeline.new
 
-```ruby
-# lib/example/api.rb
+pipeline.around(TempfileManager, FileManager)
 
-require "clientele"
-require "example/api/resources/foo"
-
-module Example
-  class API < Clientele::API
-
-    configure do |config|
-      config.root_url = "http://example.com/"
-    end
-
-    resource Resources::Foo
-  end
+pipeline.call("myfile") do |file|
+  file.write "stuff"
 end
+#=> #<File:/var/folders/9w/mmrrtvd54nd5z0vl782ngwrh0000gn/T/myfile20160204-4307-1h57xvt (closed)>
 ```
 
-Registering this resource on the client allows it to be invoked as a method.
+Finally, if any step of the pipeline returns `nil`, the pipeline is aborted:
 
 ```ruby
-Example::API.foos
-#=> #<Clientele::RequestBuilder>
-```
-
-Calling this request will send a `GET` request to `http://example.com/foos` with default headers and no query string parameters.
-
-### Customizing Resources
-
-Using the request builder API, we can define class methods on the resource that accomplish any HTTP request. If we provide a path it will be appended to the resource's path (ie. `'foos/path'`); otherwise it will send the request to the resource root. For instance, to get an ActiveRecord-inspired request DSL:
-
-```ruby
-# lib/example/api/resources/foo.rb
-
-module Example
-  class API < Clientele::API
-    module Resources
-      class Foo < Clientele::Resource
-
-        class << self
-
-          def all(&callback)
-            get &callback
-          end
-
-          def where(query={}, &callback)
-            get query: query, &callback
-          end
-
-          def create(body={}, &callback)
-            post body: body, &callback
-          end
-
-          def fetch(id, query={}, &callback)
-            get id, query: query, &callback
-          end
-
-          def update(id, body={}, &callback)
-            patch id, body: body, &callback
-          end
-
-          def destroy(id, &callback)
-            delete id, &callback
-          end
-
-        end
-
-      end
-    end
-  end
+cancel = -> o do
+  puts "cancelling..."
+  nil
 end
-```
-
-
-### Using Resources
-
-Introduction
-
-#### Making Requests to Resources
-
-#### Making Asyncronous Requests
-
-#### Chaining Resource Requests
-
-#### Iterating Across Paginated Resources
-
-
-### Configuration
-
-`Clientele::API` instances each have their own configuration that they receive from a class-level configuration object. Both the class level and instance level configurations can be customized on demand by you, the API client developer, or consumers of your client.
-
-#### Configuration Options and Their Defaults
-
-```ruby
-# lib/example/api.rb
-
-require 'clientele'
-
-module Example
-  class API < Clientele::API
-    configure do |config|
-      # Required at some point during initialization
-      config.root_url = "http://example.com/"
-
-      # Logger to use
-      config.logger                = Logger.new($stdout)
-      # Faraday adapter to use
-      config.adapter               = Faraday.default_adapter
-      # Default headers to inject into every request
-      config.headers               = {}
-      # Regex that Content-Type header must match to trigger
-      # automatic conversion of responses into hashes
-      # (behaviour can be disabled in `connection` option
-      # as well as a never-matching regex like /$^/)
-      config.hashify_content_type  = /\bjson$/
-      # Whether or not to follow redirects
-      config.follow_redirects      = true
-      # Max redirects to follow in a row
-      config.redirect_limit        = 5
-      # Force trailing slashes when appropriate
-      config.ensure_trailing_slash = true
-
-      # Faraday connection Proc to use.
-      config.connection            = default_connection
-
-      # Default connection Proc
-      def config.default_connection
-        Proc.new do |conn, options|
-
-          conn.use FaradayMiddleware::FollowRedirects, limit: options[:redirect_limit] if options[:follow_redirects]
-
-          conn.request  :url_encoded
-
-          conn.response :logger, options[:logger], bodies: true
-          conn.response :json, content_type: options[:hashify_content_type], preserve_raw: true
-
-          conn.options.params_encoder = options[:params_encoder] if options[:params_encoder]
-
-          yield(conn, options) if block_given?
-
-          conn.adapter options[:adapter] if options[:adapter]
-
-        end
-      end
-
-    end
-  end
+before_transform = -> o do
+  puts "in before"
+  o
 end
-```
-
-#### Default Library Configuration
-
-To override `clientele`'s default options within your library, use the `configure` class method on your API client. You'll probably want to do this for at least the `root_url` option since it has no default.
-
-```ruby
-#lib/example/api.rb
-require 'clientele'
-
-module Example
-  class API < Clientele::API
-
-    configure do |config|
-
-      # Required options
-      config.root_url = "http://example.com"
-
-      # Optional overrides
-      config.headers = {
-        'Accept'       => 'application/json',
-        'Content-Type' => 'application/json',
-      }
-      # must add 'net-http-persistent' to gemspec to use:
-      config.adapter = :net_http_peristent
-
-      # Custom configuration values
-      config.custom = :foobar
-
-    end
-
-  end
+around_transform = -> o, &continue do
+  puts "in around"
+  continue.call o
 end
-```
-
-#### Default User Configuration
-
-Users of your API Client can also access the class level `configure` method to change default configuration options within their project. This should be done early on in the script, library loading stage, or boot process so it can take effect before any clients are instanciated.
-
-Rails users would put this in an initializer.
-
-```ruby
-#my_app/config/initializers/example-api.rb
-require 'example/api'
-
-Example::API.configure do |config|
-  config.root_url = 'http://dev.example.com'
-  config.logger   = Rails.logger
+after_transform = -> o do
+  puts "in after"
+  o
 end
+
+Clientele::Pipeline.new do
+  before(cancel)
+  around(around_transform)
+  after(after_transform)
+end.call(:object)
+#:> cancelling...
+#=> nil
+
+Clientele::Pipeline.new do
+  before(before_transform)
+  around(cancel)
+  after(after_transform)
+end.call(:object)
+#:> in before
+#:> cancelling...
+#=> nil
+
+Clientele::Pipeline.new do
+  before(before_transform)
+  around(around_transform)
+  after(cancel)
+end.call(:object)
+#:> in before
+#:> in around
+#:> cancelling...
+#=> nil
 ```
-
-#### Initialization Configuration
-
-Finally, all these options can be overridden on client initialization using their logical symbol names in the hash to `new`:
-
-```ruby
-require 'example/api'
-
-client = Example::API.new(root_url: 'http://dev.example.com', logger: Rails.logger)
-```
-
-
-Contributing
-------------
-
-1. Fork it ( https://github.com/[my-github-username]/clientele/fork )
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request

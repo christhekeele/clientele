@@ -1,72 +1,68 @@
 require 'logger'
-require 'uri'
 
-require 'clientele/utils/configuration'
-require 'clientele/http/headers'
-require 'clientele/connection'
+require "addressable"
+require 'clientele/http/uri'
+
+require 'clientele/configuration'
+require 'clientele/adapter'
 require 'clientele/pipeline'
 
 module Clientele
   class Client
-    class Configuration < Clientele::Utils::Configuration
+    class Configuration < Clientele::Configuration
 
-      attr_accessor :logger, :headers, :follow_redirects, :redirect_limit, :connection
-      attr_reader   :root, :headers, :request_pipeline, :response_pipeline, :connection_pipeline
+      attr_accessor :logger
+      attr_reader   :root, :timeout
+      attr_writer   :pipeline
 
       def initialize
-        self.logger            = Logger.new($stdout)
-        self.headers           = {}
-        self.follow_redirects  = true
-        self.redirect_limit    = 5
-        self.connection        = Clientele::Connection
-        self.timeout           = false
-        @request_pipeline      = Pipeline.before(:status) do
-          def status(request)
-            request.tap do
-              puts "before: #{request}"
-            end
-          end
-        end
-        @response_pipeline     = Pipeline.after(:status) do
-          def status(response)
-            response.tap do
-              puts "after: #{response}"
-            end
-          end
-        end
-        @connection_pipeline   = Pipeline.around(:status) do
-          def status(request)
-            puts "preyield: #{request}"
-            response = yield request
-            puts "postyield #{response}"
-          end
-        end
+        @root       = nil
+        @logger     = Logger.new($stdout)
+        @timeout    = false
+        @adapter    = Adapter.default
+        @pipeline   = Adapter.for(@adapter)
+        #
+        # self.pipeline do
+        #   require 'clientele/transforms'
+        #   around(Transforms::Around::FollowRedirects)
+        # end
+
       end
 
       def root= uri
-        case uri
-        when URI
-          @root = uri
+        @root = case uri
+        when Addressable::URI
+          uri
         else
-          @root = URI.parse uri
+          Addressable::URI.parse uri
         end
       end
 
-      def headers= hash
-        HTTP::Headers.new(hash, type: :request)
+      def timeout= value
+        @timeout = if value
+          Integer value
+        else; value; end
       end
 
-      def request_pipeline= *args, &block
-        Pipeline.before *args, &block
+      def adapter= lookup
+        Adapter.for(lookup)
       end
-      def response_pipeline= *args, &block
-        Pipeline.after *args, &block
-      end
-      def connection_pipeline= *args, &block
+
+      def adapter &implementation
         if block_given?
-          Pipeline.around *args, &block
+          @adapter = implementation
         else
-          Pipeline.before *args
+          @adapter
+        end
+      end
+
+      def pipeline &implementation
+        if block_given?
+          @pipeline = Pipeline.new do |pipeline|
+            pipeline.instance_eval &implementation
+          end
+        else
+          @pipeline || @adapter
         end
       end
 

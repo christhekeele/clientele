@@ -1,22 +1,25 @@
 require "forwardable"
 
-require "clientele/client/configuration"
 require "clientele/http/verbs"
+
+require "clientele/client/configuration"
 require "clientele/request"
+require "clientele/adapter"
 
 module Clientele
   class Client
-    # Public: Client objects are the point of entry responsible for configuring
-    # and issuing requests.
 
     extend Forwardable
 
-    attr_accessor  :configuration
-    def_delegators :configuration, :settings, :root, :connection
-    def_delegators :configuration, :request_pipeline, :connection_pipeline, :response_pipeline
+    attr_accessor :configuration
+    alias_method  :config, :configuration
 
-    def initialize(**options, &block)
-      @configuration = Configuration.new.configure(options, &block)
+    def initialize(configuration = Configuration, **options, &block)
+      @configuration = configuration.new.configure(**options, &block)
+    end
+
+    def config
+      @configuration
     end
 
     def request(**options)
@@ -29,18 +32,62 @@ module Clientele
       end
     end
 
-    Clientele::HTTP::Verb.methods.map(&:downcase).each do |verb|
-      define_singleton_method verb do |root, **options|
-        new(root: root).request(options.merge(verb: __method__)).call
+    def call(request)
+      configuration.pipeline.call(request) do |request|
+        Adapter.for(request.config.adapter).call request
       end
     end
 
-    def call(request)
-      request_pipeline.call(request) do |request|
-        connection_pipeline.call(request) do |request|
-          response_pipeline.call request.connection.call(request)
+    def call!(request)
+      call(request).tap do |response|
+        if response.status.error?
+          raise response.status.error
         end
       end
+    end
+
+    class << self
+
+      def request(verb, root, **options)
+        new(root: root).request(options.merge(verb: verb))
+      end
+
+      def call(verb, root, **options)
+        request(verb, root, **options).call
+      end
+
+      def call!(verb, root, **options)
+        request(verb, root, **options).call!
+      end
+
+    end
+
+    PROXY_METHODS = Clientele::HTTP::Verb.methods + Clientele::HTTP::Verb.methods.map(&:downcase)
+
+    PROXY_METHODS.each do |verb|
+
+      define_singleton_method verb do |root, **options|
+        call  verb, root, **options
+      end
+
+      define_method verb do |**options|
+        request(options.merge(verb: verb)).call
+      end
+
+    end
+
+    BANG_PROXY_METHODS = PROXY_METHODS.map{ |proxy| :"#{proxy}!"}
+
+    BANG_PROXY_METHODS.each do |bang|
+
+      define_singleton_method bang do |root, **options|
+        call! bang[0..-2], root, **options
+      end
+
+      define_method bang do |**options|
+        request(options.merge(verb: bang[0..-2])).call!
+      end
+
     end
 
   end

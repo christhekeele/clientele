@@ -9,21 +9,11 @@ module Clientele
     extend Forwardable
 
     attr_reader    :request
-    def_delegators :request, :configuration, :connection, :root
+    def_delegators :request, :client, :config
 
     def initialize(request: nil, **options)
-      @request = if request.kind_of? Hash
-        Request.new request
-      else
-        request
-      end
-      status = Clientele::HTTP::Status.for options[:status]
-      super status, options[:headers] || {}, options[:body]
-    end
-
-
-    def call
-
+      @request = request
+      super options[:status], options[:headers] || {}, options[:body]
     end
 
     def receive_body(chunk)

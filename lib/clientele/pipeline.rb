@@ -1,84 +1,52 @@
-module Clientele
-  class Pipeline < Module
+require 'clientele/pipeline/transforms'
 
-    attr_accessor :transforms
-    def initialize(*transforms, &implementation)
-      @transforms = transforms
+module Clientele
+  class Pipeline
+
+    def initialize(&implementation)
+      @before = Transforms::Before.new
+      @around = Transforms::Around.new
+      @after  = Transforms::After.new
       instance_eval &implementation if block_given?
     end
 
-    def call(*args, &block)
-      transformers.reduce(block || default_block) do |pipeline, transformer|
-        -> *args { transformer.call(*args, &pipeline) }
-      end.call *args
-    end
-
-    class Before < self
-      # Use default behavior
-    end
-
-    class After < self
-      def apply(transformer)
-        -> *args, &block {
-          transformer.call *block.call(*args)
-        }
+    def before(*transforms)
+      if not transforms.empty?
+        @before = Transforms::Before.new *transforms
+      else
+        @before
       end
     end
 
-    class Around < self
-      # Rely on implementation to yield
-      def apply(transformer)
-        transformer
+    def around(*transforms)
+      if not transforms.empty?
+        @around = Transforms::Around.new *transforms
+      else
+        @around
+      end
+    end
+    
+    def after(*transforms)
+      if not transforms.empty?
+        @after  = Transforms::After.new *transforms
+      else
+        @after
       end
     end
 
-    class << self
-
-      def before(*args, &block)
-        Before.new(*args, &block)
-      end
-
-      def after(*args, &block)
-        After.new(*args, &block)
-      end
-
-      def around(*args, &block)
-        Around.new(*args, &block)
-      end
-
-    end
-
-  private
-
-    def transformers
-      transforms.reverse.map do |transform|
-        transformer_for transform
-      end.compact.map do |transformer|
-        apply transformer
+    def call(object)
+      @before.call object do |object|
+        result = @around.call object do |object|
+          block_given? ? yield(object) : object
+        end
+        @after.call result
       end
     end
 
-    def apply(transformer)
-      -> *args, &block {
-        block.call *transformer.call(*args)
-      }
-    end
-
-    def transformer_for(transform)
-      if transform.respond_to? :call
-        transform
-      elsif transform.respond_to? :to_sym
-        method transform.to_sym
+    def to_proc
+      Proc.new do |object, &block|
+        call object, &block
       end
-    end
-
-    def default_block
-      -> *args {
-        case args.length
-        when 0; nil
-        when 1; args.first;
-        else args; end
-      }
     end
 
   end

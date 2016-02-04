@@ -1,7 +1,8 @@
 require "forwardable"
 
-require "clientele/client"
 require 'clientele/http/request'
+
+require "clientele/client"
 
 module Clientele
   class Request < HTTP::Request
@@ -9,7 +10,7 @@ module Clientele
     extend Forwardable
 
     attr_reader    :client
-    def_delegators :client, :configuration, :root
+    def_delegators :client, :config
 
     def initialize(client: nil, **options)
       @client = if client.kind_of? Hash
@@ -17,25 +18,32 @@ module Clientele
       else
         client
       end
-      uri = root + '/' + options[:path].to_s
-      super options[:verb] || :get, uri, options[:headers] || {}, options[:body]
+      verb = options.delete(:verb) || :get
+      headers = options.delete(:headers) || {}
+      body = options.delete(:body)
+      path = Array(options.delete(:path)).flatten.map(&:to_s).join('/')
+      uri = config.root.merge(options.merge(path: path))
+      super verb, uri, headers, body
       # yield response if block_given?
     end
 
     def call
-      client.call(self)
+      @response = client.call(self)
     end
-    alias_method :response, :call
 
-    def io
-      return unless body
-
-      if body.respond_to?(:read)
-        body
-      elsif body
-        StringIO.new(body)
-      end
+    def call!
+      @response = client.call!(self)
     end
+
+    def response
+      @response ||= call
+    end
+
+    def response!
+      @response ||= call!
+    end
+
+  # IMPL
 
     def body_receiver
       @body_receiver ||= [nil, BodyReceiver.new]

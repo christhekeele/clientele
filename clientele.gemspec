@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.version       = Clientele::VERSION
   spec.authors       = ["Chris Keele"]
   spec.email         = ["dev@chriskeele.com"]
-  spec.summary       = ''
+  spec.summary       = 'An HTTP client library for the discerning rubyist.'
   spec.description   = <<-DESC
   DESC
   spec.homepage      = "https://github.com/christhekeele/clientele"
@@ -22,12 +22,8 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '~> 2.0'
 
-  # spec.add_dependency "faraday", "~> 0.9.0"
-  # spec.add_dependency "faraday_middleware", "~> 0.9.0"
-  # spec.add_dependency "rash", "~> 0.4.0"
-  # spec.add_dependency "hashie", "~> 3.4.3"
-  # spec.add_dependency "block_party", ">= 0.1.2"
   spec.add_runtime_dependency "clientele-http"
+  spec.add_runtime_dependency "addressable", "~> 2.4.0"
 
   spec.add_development_dependency "bundler", "> 1.3"
   spec.add_development_dependency "rake"
