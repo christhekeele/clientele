@@ -22,10 +22,17 @@ module Clientele
         @adapter    = Adapter.default
         @pipeline   = Adapter.for(@adapter)
         #
-        # self.pipeline do
-        #   require 'clientele/transforms'
-        #   around(Transforms::Around::FollowRedirects)
-        # end
+        self.pipeline do
+          require 'clientele/transforms'
+          before.transforms <<
+            Transforms::Before::DefaultHeaders <<
+            Transforms::Before::DefaultHeaders.inject('Fizz' => 'Buzz') <<
+            Transforms::Before::EnsureTrailingSlash
+          around Transforms::Around::FollowRedirects
+        end
+
+        attr_accessor :default_headers
+        self.default_headers = {'Foo' => 'Bar'}
 
       end
 

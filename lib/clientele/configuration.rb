@@ -1,5 +1,10 @@
+require 'clientele/utils'
+
 module Clientele
   class Configuration
+
+    include Utils::DeepCopy
+    include Utils::DeepFreeze
 
     def configure(options = {})
       self.load_hash(options).tap do |config|

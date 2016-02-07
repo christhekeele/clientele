@@ -1,12 +1,16 @@
 require "forwardable"
 
-require 'clientele/request'
 require 'clientele/http/response'
+
+require 'clientele/request'
+require 'clientele/utils'
 
 module Clientele
   class Response < HTTP::Response
 
     extend Forwardable
+    include Utils::DeepCopy
+    include Utils::DeepFreeze
 
     attr_reader    :request
     def_delegators :request, :client, :config

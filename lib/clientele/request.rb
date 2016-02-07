@@ -3,11 +3,14 @@ require "forwardable"
 require 'clientele/http/request'
 
 require "clientele/client"
+require "clientele/utils"
 
 module Clientele
   class Request < HTTP::Request
 
     extend Forwardable
+    include Utils::DeepCopy
+    include Utils::DeepFreeze
 
     attr_reader    :client
     def_delegators :client, :config
@@ -28,19 +31,11 @@ module Clientele
     end
 
     def call
-      @response = client.call(self)
+      client.call(self)
     end
 
     def call!
-      @response = client.call!(self)
-    end
-
-    def response
-      @response ||= call
-    end
-
-    def response!
-      @response ||= call!
+      client.call!(self)
     end
 
   # IMPL

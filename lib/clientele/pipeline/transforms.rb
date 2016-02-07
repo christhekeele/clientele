@@ -1,6 +1,11 @@
+require 'clientele/utils'
+
 module Clientele
   class Pipeline
     class Transforms
+
+      include Utils::DeepCopy
+      include Utils::DeepFreeze
 
       attr_accessor :transforms
       def initialize(*transforms)
@@ -10,7 +15,17 @@ module Clientele
       def call(object, &block)
         block = default_block unless block_given?
         if @transforms and not @transforms.empty?
-          composed_transforms.call object
+          @transforms.reverse.map do |transform|
+            apply transform
+          end.reduce(block) do |composition, transform|
+            Proc.new do |object|
+              if not object.nil?
+                transform.call(object, &composition)
+              else
+                nil
+              end
+            end
+          end.call object
         else
           block.call object
         end
@@ -27,30 +42,6 @@ module Clientele
       def default_block
         Proc.new do |object|
           object
-        end
-      end
-
-      def composed_transforms
-        @transforms.reverse.map do |transform|
-          apply transform
-        end.reduce(block) do |composition, transform|
-          compose_transform(composition, transform)
-        end
-      end
-
-      def compose_transform(composition, transform)
-        abortable_transform do
-          transform.call(object, &composition)
-        end
-      end
-
-      def abortable_transform
-        Proc.new do |object|
-          if not object.nil?
-            yield
-          else
-            nil
-          end
         end
       end
 

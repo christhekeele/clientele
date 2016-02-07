@@ -1,7 +1,11 @@
 require 'clientele/pipeline/transforms'
+require 'clientele/utils'
 
 module Clientele
   class Pipeline
+
+    include Utils::DeepCopy
+    include Utils::DeepFreeze
 
     def initialize(&implementation)
       @before = Transforms::Before.new
@@ -25,7 +29,7 @@ module Clientele
         @around
       end
     end
-    
+
     def after(*transforms)
       if not transforms.empty?
         @after  = Transforms::After.new *transforms

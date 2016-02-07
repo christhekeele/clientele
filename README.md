@@ -8,7 +8,7 @@ Clientele
 Design
 ------
 
-Clientele is a simple ruby HTTP library that's easy to configure, extend, and build other libraries off of.
+Clientele is a simple ruby HTTP library that's easy to use, extend, and leverage to build other tools.
 
 It's inspired by Faraday and Hurley, with a few extra design goals.
 

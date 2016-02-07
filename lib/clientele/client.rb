@@ -2,6 +2,7 @@ require "forwardable"
 
 require "clientele/http/verbs"
 
+require 'clientele/utils'
 require "clientele/client/configuration"
 require "clientele/request"
 require "clientele/adapter"
@@ -10,6 +11,8 @@ module Clientele
   class Client
 
     extend Forwardable
+    include Utils::DeepCopy
+    include Utils::DeepFreeze
 
     attr_accessor :configuration
     alias_method  :config, :configuration
@@ -76,7 +79,7 @@ module Clientele
 
     end
 
-    BANG_PROXY_METHODS = PROXY_METHODS.map{ |proxy| :"#{proxy}!"}
+    BANG_PROXY_METHODS = PROXY_METHODS.map{ |method| :"#{method}!" }
 
     BANG_PROXY_METHODS.each do |bang|
 
