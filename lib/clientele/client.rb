@@ -1,8 +1,7 @@
-require "forwardable"
-
 require "clientele/http/verbs"
 
 require 'clientele/utils'
+
 require "clientele/client/configuration"
 require "clientele/request"
 require "clientele/adapter"
@@ -10,19 +9,18 @@ require "clientele/adapter"
 module Clientele
   class Client
 
-    extend Forwardable
     include Utils::DeepCopy
     include Utils::DeepFreeze
 
     attr_accessor :configuration
     alias_method  :config, :configuration
 
-    def initialize(configuration = Configuration, **options, &block)
+    def initialize(configuration = config_class, **options, &block)
       @configuration = configuration.new.configure(**options, &block)
     end
-
-    def config
-      @configuration
+    
+    def config_class
+      self.class.config_class
     end
 
     def request(**options)
@@ -31,25 +29,27 @@ module Clientele
 
     def configure(**options, &block)
       self.dup.tap do |client|
-        client.configuration.configure(options, &block)
+        client.config.configure(options, &block)
       end
     end
 
     def call(request)
-      configuration.pipeline.call(request) do |request|
-        Adapter.for(request.config.adapter).call request
+      config.pipeline.call(request) do |request|
+        request.config.adapter.call request
       end
     end
 
     def call!(request)
       call(request).tap do |response|
-        if response.status.error?
-          raise response.status.error
-        end
+        raise response.status.error if response.status.error?
       end
     end
 
     class << self
+    
+      def config_class
+        Configuration
+      end
 
       def request(verb, root, **options)
         new(root: root).request(options.merge(verb: verb))
@@ -70,7 +70,7 @@ module Clientele
     PROXY_METHODS.each do |verb|
 
       define_singleton_method verb do |root, **options|
-        call  verb, root, **options
+        call(verb, root, **options)
       end
 
       define_method verb do |**options|
@@ -84,7 +84,7 @@ module Clientele
     BANG_PROXY_METHODS.each do |bang|
 
       define_singleton_method bang do |root, **options|
-        call! bang[0..-2], root, **options
+        call!(bang[0..-2], root, **options)
       end
 
       define_method bang do |**options|

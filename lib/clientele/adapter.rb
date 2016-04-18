@@ -1,22 +1,18 @@
-require 'singleton'
-
 module Clientele
   class Adapter
 
-    include Singleton
-
     class << self
 
-      def for(lookup)
+      def for(lookup, *args, **opts)
         if adapters.include? lookup
-          lookup.instance
-        elsif keys.map(&:to_sym).include? lookup.to_sym
+          lookup.new(*args, **opts)
+        elsif lookup.respond_to?(:to_sym) and keys.map(&:to_sym).include?(lookup.to_sym)
           adapters.find do |adapter|
             adapter.key.to_sym == lookup.to_sym
-          end.instance
+          end.new(*args, **opts)
         elsif lookup.respond_to? :to_proc
           lookup.to_proc
-        elsif lookup.response_to? :call
+        elsif lookup.respond_to? :call
           lookup
         else
           raise "Adapter `#{lookup}` not found"
@@ -46,6 +42,8 @@ module Clientele
       end
 
     end
+    
+    def initialize(*args, **opts); end
 
   end
 end

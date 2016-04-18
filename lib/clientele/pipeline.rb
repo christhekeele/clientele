@@ -14,25 +14,31 @@ module Clientele
       instance_eval &implementation if block_given?
     end
 
-    def before(*transforms)
+    def before(*transforms, &block)
       if not transforms.empty?
-        @before = Transforms::Before.new *transforms
+        @before.transforms += transforms
+      elsif block_given?
+        @before.transforms << block
       else
         @before
       end
     end
 
-    def around(*transforms)
+    def around(*transforms, &block)
       if not transforms.empty?
-        @around = Transforms::Around.new *transforms
+        @around.transforms += transforms
+      elsif block_given?
+        @around.transforms << block
       else
         @around
       end
     end
 
-    def after(*transforms)
+    def after(*transforms, &block)
       if not transforms.empty?
-        @after  = Transforms::After.new *transforms
+        @after.transforms += transforms
+      elsif block_given?
+        @after.transforms << block
       else
         @after
       end

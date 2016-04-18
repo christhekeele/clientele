@@ -33,7 +33,7 @@ module Clientele
     def call
       client.call(self)
     end
-
+    
     def call!
       client.call!(self)
     end

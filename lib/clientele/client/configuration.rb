@@ -20,19 +20,19 @@ module Clientele
         @logger     = Logger.new($stdout)
         @timeout    = false
         @adapter    = Adapter.default
-        @pipeline   = Adapter.for(@adapter)
+        @pipeline   = Pipeline.new
         #
-        self.pipeline do
-          require 'clientele/transforms'
-          before.transforms <<
-            Transforms::Before::DefaultHeaders <<
-            Transforms::Before::DefaultHeaders.inject('Fizz' => 'Buzz') <<
-            Transforms::Before::EnsureTrailingSlash
-          around Transforms::Around::FollowRedirects
-        end
-
-        attr_accessor :default_headers
-        self.default_headers = {'Foo' => 'Bar'}
+        # self.pipeline do
+        #   require 'clientele/transforms'
+        #   before.transforms <<
+        #     Transforms::Before::DefaultHeaders <<
+        #     Transforms::Before::DefaultHeaders.inject('Fizz' => 'Buzz') <<
+        #     Transforms::Before::EnsureTrailingSlash
+        #   around Transforms::Around::FollowRedirects
+        # end
+        # 
+        # attr_accessor :default_headers
+        # self.default_headers = {'Foo' => 'Bar'}
 
       end
 
@@ -59,7 +59,7 @@ module Clientele
         if block_given?
           @adapter = implementation
         else
-          @adapter
+          Adapter.for(@adapter)
         end
       end
 
@@ -69,7 +69,7 @@ module Clientele
             pipeline.instance_eval &implementation
           end
         else
-          @pipeline || @adapter
+          @pipeline
         end
       end
 

@@ -11,11 +11,13 @@ module Clientele
       def initialize(*transforms)
         @transforms = transforms
       end
+      
+      alias_method :ordered_transforms, :transforms
 
       def call(object, &block)
         block = default_block unless block_given?
-        if @transforms and not @transforms.empty?
-          @transforms.reverse.map do |transform|
+        if transforms and not transforms.empty?
+          ordered_transforms.reverse.map do |transform|
             apply transform
           end.reduce(block) do |composition, transform|
             Proc.new do |object|

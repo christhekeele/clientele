@@ -9,4 +9,4 @@ gem 'pry'
 gem 'clipboard'
 
 gem 'clientele-http',       github: 'christhekeele/clientele-http',       branch: :master
-gem 'clientele-transforms', github: 'christhekeele/clientele-transforms', branch: :master
+gem 'clientele-utils',       github: 'christhekeele/clientele-utils',       branch: :master
