@@ -12,7 +12,7 @@ module Clientele
     include Utils::DeepCopy
     include Utils::DeepFreeze
 
-    attr_reader    :client
+    attr_reader    :client, :options
     def_delegators :client, :config
 
     def initialize(client: nil, **options)
@@ -25,6 +25,7 @@ module Clientele
       headers = options.delete(:headers) || {}
       body = options.delete(:body)
       path = Array(options.delete(:path)).flatten.map(&:to_s).join('/')
+      @options = options.delete(:options) || {}
       uri = config.root.merge(options.merge(path: path))
       super verb, uri, headers, body
       # yield response if block_given?
